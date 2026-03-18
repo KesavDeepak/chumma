@@ -6,9 +6,7 @@
 <body>
 
 <h2>Smart Emergency Detection 🚑</h2>
-
-<button onclick="startSystem()">Start Monitoring</button>
-<button onclick="simulateFall()">Simulate Fall (Demo)</button>
+<p>Tap anywhere to activate monitoring</p>
 
 <p id="status">Status: Waiting...</p>
 
@@ -18,11 +16,28 @@
 // GLOBAL VARIABLES
 // ----------------------
 let isAppActive = true;
-let monitoring = false;
+let started = false;
 
 let lastTotal = 0;
 let lastTime = Date.now();
 let lastFallTime = 0;
+
+// ----------------------
+// AUTO START (ONE TIME)
+// ----------------------
+document.addEventListener("touchstart", () => {
+    if (!started) {
+        started = true;
+        startSystem();
+    }
+});
+
+document.addEventListener("click", () => {
+    if (!started) {
+        started = true;
+        startSystem();
+    }
+});
 
 // ----------------------
 // APP ACTIVE DETECTION
@@ -44,15 +59,12 @@ window.addEventListener("focus", () => {
 // ----------------------
 function startSystem() {
 
-    monitoring = true;
     document.getElementById("status").innerText = "Monitoring started...";
 
     if (typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission().then(res => {
             if (res === 'granted') {
                 startSensors();
-            } else {
-                alert("Permission denied");
             }
         });
     } else {
@@ -61,13 +73,13 @@ function startSystem() {
 }
 
 // ----------------------
-// SENSOR LISTENER
+// SENSOR LISTENER (CONTINUOUS)
 // ----------------------
 function startSensors() {
 
     window.addEventListener("devicemotion", function(event) {
 
-        if (!monitoring) return;
+        if (!isAppActive) return; // 🔥 stop if inactive
 
         let acc = event.accelerationIncludingGravity;
         if (!acc) return;
@@ -86,7 +98,7 @@ function startSensors() {
 }
 
 // ----------------------
-// FALL DETECTION (SPIKE BASED)
+// FALL DETECTION (SPIKE)
 // ----------------------
 function detectFall(total) {
 
@@ -95,14 +107,11 @@ function detectFall(total) {
 
     let change = Math.abs(total - lastTotal);
 
-    // 🔥 Adjusted logic
     if (
-        total > 11 &&       // lower threshold
-        change > 5 &&       // sudden spike
-        timeDiff < 300      // fast change
+        total > 12 &&
+        change > 5 &&
+        timeDiff < 300
     ) {
-
-        // ⏱️ Cooldown to prevent repeated triggers
         if (currentTime - lastFallTime > 5000) {
             lastFallTime = currentTime;
             handleFall("Sudden Impact Detected");
@@ -118,14 +127,12 @@ function detectFall(total) {
 // ----------------------
 function handleFall(reason) {
 
-    if (!isAppActive) {
-        console.log("App inactive → ignoring");
-        return;
-    }
+    if (!isAppActive) return;
 
     document.getElementById("status").innerText = "⚠️ " + reason;
 
     setTimeout(() => {
+
         let response = confirm("Are you okay?");
 
         if (!response) {
@@ -133,25 +140,16 @@ function handleFall(reason) {
         } else {
             document.getElementById("status").innerText = "✅ User is safe";
         }
+
     }, 2000);
 }
 
 // ----------------------
-// EMERGENCY ACTION
+// EMERGENCY
 // ----------------------
 function triggerEmergency() {
-
     document.getElementById("status").innerText = "🚑 Emergency Triggered!";
-
     console.log("Calling ambulance...");
-    console.log("Sending location...");
-}
-
-// ----------------------
-// DEMO BUTTON
-// ----------------------
-function simulateFall() {
-    handleFall("Manual Demo Trigger");
 }
 
 </script>
