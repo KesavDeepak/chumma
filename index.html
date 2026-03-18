@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Emergency Detection</title>
+</head>
+<body>
+
+<h2>Smart Emergency Detection 🚑</h2>
+<button onclick="startSystem()">Start System</button>
+
+<p id="status">Status: Waiting...</p>
+
+<script>
+let lastInteraction = Date.now();
+let lastMovementTime = Date.now();
+let isFlat = false;
+let fallDetected = false;
+
+// Track touch
+document.addEventListener("touchstart", () => {
+    lastInteraction = Date.now();
+    console.log("Touch detected");
+});
+
+function startSystem() {
+    document.getElementById("status").innerText = "Monitoring...";
+
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(res => {
+            if (res === 'granted') initSensors();
+        });
+    } else {
+        initSensors();
+    }
+}
+
+function initSensors() {
+
+    window.addEventListener("devicemotion", function(event) {
+        let acc = event.accelerationIncludingGravity;
+        if (!acc) return;
+
+        let x = acc.x || 0;
+        let y = acc.y || 0;
+        let z = acc.z || 0;
+
+        let total = Math.sqrt(x*x + y*y + z*z);
+
+        // 👇 SHOW VALUES (DEBUG)
+        document.getElementById("status").innerText =
+            "Total: " + total.toFixed(2);
+
+        // 🔥 Lower threshold
+        if (total > 18) {
+            fallDetected = true;
+            console.log("Fall detected!");
+        }
+
+        if (total > 2) {
+            lastMovementTime = Date.now();
+        }
+    });
+
+    window.addEventListener("deviceorientation", function(event) {
+        let beta = event.beta;
+
+        // 👇 Relaxed condition
+        if (Math.abs(beta) > 60) {
+            isFlat = true;
+        } else {
+            isFlat = false;
+        }
+    });
+
+    setInterval(checkCondition, 2000);
+}
+
+function checkCondition() {
+
+    let now = Date.now();
+
+    let noInteraction = (now - lastInteraction > 7000); // reduced
+    let lowMovement = (now - lastMovementTime > 5000);
+
+    console.log("Check:", {
+        fallDetected,
+        noInteraction,
+        lowMovement,
+        isFlat
+    });
+
+    // Case 1
+    if (fallDetected && noInteraction && lowMovement) {
+        triggerCheck("Fall detected");
+    }
+
+    // Case 2 (vehicle faint)
+    else if (noInteraction && isFlat) {
+        triggerCheck("No interaction + flat");
+    }
+}
+
+function triggerCheck(reason) {
+    document.getElementById("status").innerText = "Checking: " + reason;
+
+    setTimeout(() => {
+        let response = confirm("Are you okay?");
+        if (!response) {
+            triggerEmergency();
+        } else {
+            resetSystem();
+        }
+    }, 500);
+}
+
+function triggerEmergency() {
+    document.getElementById("status").innerText = "🚑 Emergency!";
+}
+
+function resetSystem() {
+    fallDetected = false;
+    lastInteraction = Date.now();
+    lastMovementTime = Date.now();
+    document.getElementById("status").innerText = "Safe";
+}
+</script>
+
+</body>
+</html>
