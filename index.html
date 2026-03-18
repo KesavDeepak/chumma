@@ -148,8 +148,62 @@ function handleFall(reason) {
 // EMERGENCY
 // ----------------------
 function triggerEmergency() {
-    document.getElementById("status").innerText = "🚑 Emergency Triggered!";
-    console.log("Calling ambulance...");
+
+    document.getElementById("status").innerText = "🚑 Emergency Triggered! Getting location...";
+
+    // Step 1: Get user location
+    if (navigator.geolocation) {
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+
+                console.log("Location:", lat, lon);
+
+                document.getElementById("status").innerText =
+                    "📍 Location detected! Finding nearest hospital...";
+
+                // Step 2: Mock hospital data
+                let hospitals = [
+                    { name: "City Hospital", available: true },
+                    { name: "Apollo Hospital", available: false },
+                    { name: "Government Hospital", available: true }
+                ];
+
+                // Step 3: Pick first available hospital
+                let selectedHospital = hospitals.find(h => h.available);
+
+                if (!selectedHospital) {
+                    document.getElementById("status").innerText =
+                        "❌ No hospitals available!";
+                    return;
+                }
+
+                document.getElementById("status").innerText =
+                    "🏥 " + selectedHospital.name + " is available. Opening route...";
+
+                // Step 4: Open Google Maps with fastest route
+                let mapsURL = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${selectedHospital.name}&travelmode=driving`;
+
+                window.open(mapsURL, "_blank");
+
+                // Step 5: Simulate emergency call
+                console.log("📞 Calling ambulance...");
+            },
+
+            (error) => {
+                console.error("Location error:", error);
+                document.getElementById("status").innerText =
+                    "❌ Unable to get location!";
+            }
+        );
+
+    } else {
+        document.getElementById("status").innerText =
+            "❌ Geolocation not supported!";
+    }
 }
 
 </script>
