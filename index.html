@@ -97,9 +97,9 @@ function detectFall(total) {
 
     // 🔥 Adjusted logic
     if (
-        total > 12 &&       // lower threshold
+        total > 11 &&       // lower threshold
         change > 5 &&       // sudden spike
-        timeDiff < 400      // fast change
+        timeDiff < 300      // fast change
     ) {
 
         // ⏱️ Cooldown to prevent repeated triggers
