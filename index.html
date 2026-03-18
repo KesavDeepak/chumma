@@ -19,14 +19,16 @@
 // ----------------------
 let isAppActive = true;
 let monitoring = false;
-let fallCooldown = false;
+
+let lastTotal = 0;
+let lastTime = Date.now();
+let lastFallTime = 0;
 
 // ----------------------
 // APP ACTIVE DETECTION
 // ----------------------
 document.addEventListener("visibilitychange", () => {
     isAppActive = !document.hidden;
-    console.log("Visibility:", isAppActive);
 });
 
 window.addEventListener("blur", () => {
@@ -76,21 +78,39 @@ function startSensors() {
 
         let total = Math.sqrt(x*x + y*y + z*z);
 
-        // Show live value
         document.getElementById("status").innerText =
             "Monitoring... Acc: " + total.toFixed(2);
 
-        // FALL DETECTION
-        if (total > 18 && !fallCooldown) {
-            fallCooldown = true;
-            handleFall("Sensor Fall Detected");
-
-            // Prevent multiple triggers
-            setTimeout(() => {
-                fallCooldown = false;
-            }, 10000);
-        }
+        detectFall(total);
     });
+}
+
+// ----------------------
+// FALL DETECTION (SPIKE BASED)
+// ----------------------
+function detectFall(total) {
+
+    let currentTime = Date.now();
+    let timeDiff = currentTime - lastTime;
+
+    let change = Math.abs(total - lastTotal);
+
+    // 🔥 Adjusted logic
+    if (
+        total > 12 &&       // lower threshold
+        change > 5 &&       // sudden spike
+        timeDiff < 400      // fast change
+    ) {
+
+        // ⏱️ Cooldown to prevent repeated triggers
+        if (currentTime - lastFallTime > 5000) {
+            lastFallTime = currentTime;
+            handleFall("Sudden Impact Detected");
+        }
+    }
+
+    lastTotal = total;
+    lastTime = currentTime;
 }
 
 // ----------------------
@@ -98,7 +118,6 @@ function startSensors() {
 // ----------------------
 function handleFall(reason) {
 
-    // Check app active
     if (!isAppActive) {
         console.log("App inactive → ignoring");
         return;
@@ -106,9 +125,7 @@ function handleFall(reason) {
 
     document.getElementById("status").innerText = "⚠️ " + reason;
 
-    // Wait 2 seconds before asking
     setTimeout(() => {
-
         let response = confirm("Are you okay?");
 
         if (!response) {
@@ -116,7 +133,6 @@ function handleFall(reason) {
         } else {
             document.getElementById("status").innerText = "✅ User is safe";
         }
-
     }, 2000);
 }
 
@@ -127,13 +143,12 @@ function triggerEmergency() {
 
     document.getElementById("status").innerText = "🚑 Emergency Triggered!";
 
-    // Simulate backend call
     console.log("Calling ambulance...");
     console.log("Sending location...");
 }
 
 // ----------------------
-// DEMO BUTTON (VERY IMPORTANT)
+// DEMO BUTTON
 // ----------------------
 function simulateFall() {
     handleFall("Manual Demo Trigger");
