@@ -6,37 +6,67 @@
 <body>
 
 <h2>Smart Emergency Detection 🚑</h2>
-<button onclick="startSystem()">Start System</button>
+
+<button onclick="startSystem()">Start Monitoring</button>
+<button onclick="simulateFall()">Simulate Fall (Demo)</button>
 
 <p id="status">Status: Waiting...</p>
 
 <script>
-let lastInteraction = Date.now();
-let lastMovementTime = Date.now();
-let isFlat = false;
-let fallDetected = false;
 
-// Track touch
-document.addEventListener("touchstart", () => {
-    lastInteraction = Date.now();
-    console.log("Touch detected");
+// ----------------------
+// GLOBAL VARIABLES
+// ----------------------
+let isAppActive = true;
+let monitoring = false;
+let fallCooldown = false;
+
+// ----------------------
+// APP ACTIVE DETECTION
+// ----------------------
+document.addEventListener("visibilitychange", () => {
+    isAppActive = !document.hidden;
+    console.log("Visibility:", isAppActive);
 });
 
+window.addEventListener("blur", () => {
+    isAppActive = false;
+});
+
+window.addEventListener("focus", () => {
+    isAppActive = true;
+});
+
+// ----------------------
+// START SYSTEM
+// ----------------------
 function startSystem() {
-    document.getElementById("status").innerText = "Monitoring...";
+
+    monitoring = true;
+    document.getElementById("status").innerText = "Monitoring started...";
 
     if (typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission().then(res => {
-            if (res === 'granted') initSensors();
+            if (res === 'granted') {
+                startSensors();
+            } else {
+                alert("Permission denied");
+            }
         });
     } else {
-        initSensors();
+        startSensors();
     }
 }
 
-function initSensors() {
+// ----------------------
+// SENSOR LISTENER
+// ----------------------
+function startSensors() {
 
     window.addEventListener("devicemotion", function(event) {
+
+        if (!monitoring) return;
+
         let acc = event.accelerationIncludingGravity;
         if (!acc) return;
 
@@ -46,83 +76,69 @@ function initSensors() {
 
         let total = Math.sqrt(x*x + y*y + z*z);
 
-        // 👇 SHOW VALUES (DEBUG)
+        // Show live value
         document.getElementById("status").innerText =
-            "Total: " + total.toFixed(2);
+            "Monitoring... Acc: " + total.toFixed(2);
 
-        // 🔥 Lower threshold
-        if (total > 18) {
-            fallDetected = true;
-            console.log("Fall detected!");
-        }
+        // FALL DETECTION
+        if (total > 18 && !fallCooldown) {
+            fallCooldown = true;
+            handleFall("Sensor Fall Detected");
 
-        if (total > 2) {
-            lastMovementTime = Date.now();
-        }
-    });
-
-    window.addEventListener("deviceorientation", function(event) {
-        let beta = event.beta;
-
-        // 👇 Relaxed condition
-        if (Math.abs(beta) > 60) {
-            isFlat = true;
-        } else {
-            isFlat = false;
+            // Prevent multiple triggers
+            setTimeout(() => {
+                fallCooldown = false;
+            }, 10000);
         }
     });
-
-    setInterval(checkCondition, 2000);
 }
 
-function checkCondition() {
+// ----------------------
+// HANDLE FALL
+// ----------------------
+function handleFall(reason) {
 
-    let now = Date.now();
-
-    let noInteraction = (now - lastInteraction > 7000); // reduced
-    let lowMovement = (now - lastMovementTime > 5000);
-
-    console.log("Check:", {
-        fallDetected,
-        noInteraction,
-        lowMovement,
-        isFlat
-    });
-
-    // Case 1
-    if (fallDetected && noInteraction && lowMovement) {
-        triggerCheck("Fall detected");
+    // Check app active
+    if (!isAppActive) {
+        console.log("App inactive → ignoring");
+        return;
     }
 
-    // Case 2 (vehicle faint)
-    else if (noInteraction && isFlat) {
-        triggerCheck("No interaction + flat");
-    }
-}
+    document.getElementById("status").innerText = "⚠️ " + reason;
 
-function triggerCheck(reason) {
-    document.getElementById("status").innerText = "Checking: " + reason;
-
+    // Wait 2 seconds before asking
     setTimeout(() => {
+
         let response = confirm("Are you okay?");
+
         if (!response) {
             triggerEmergency();
         } else {
-            resetSystem();
+            document.getElementById("status").innerText = "✅ User is safe";
         }
-    }, 500);
+
+    }, 2000);
 }
 
+// ----------------------
+// EMERGENCY ACTION
+// ----------------------
 function triggerEmergency() {
-    document.getElementById("status").innerText = "🚑 Emergency!";
+
+    document.getElementById("status").innerText = "🚑 Emergency Triggered!";
+
+    // Simulate backend call
+    console.log("Calling ambulance...");
+    console.log("Sending location...");
 }
 
-function resetSystem() {
-    fallDetected = false;
-    lastInteraction = Date.now();
-    lastMovementTime = Date.now();
-    document.getElementById("status").innerText = "Safe";
+// ----------------------
+// DEMO BUTTON (VERY IMPORTANT)
+// ----------------------
+function simulateFall() {
+    handleFall("Manual Demo Trigger");
 }
+
 </script>
 
 </body>
