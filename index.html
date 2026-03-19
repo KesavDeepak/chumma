@@ -20,8 +20,6 @@ let started = false;
 
 let lastTotal = 0;
 let lastTime = Date.now();
-
-let fallDetected = false;
 let lastFallTime = 0;
 
 // ----------------------
@@ -75,13 +73,13 @@ function startSystem() {
 }
 
 // ----------------------
-// SENSOR LISTENER
+// SENSOR LISTENER (CONTINUOUS)
 // ----------------------
 function startSensors() {
 
     window.addEventListener("devicemotion", function(event) {
 
-        if (!isAppActive) return;
+        if (!isAppActive) return; // 🔥 stop if inactive
 
         let acc = event.accelerationIncludingGravity;
         if (!acc) return;
@@ -100,41 +98,24 @@ function startSensors() {
 }
 
 // ----------------------
-// FALL DETECTION (IMPACT + STILLNESS)
+// FALL DETECTION (SPIKE)
 // ----------------------
 function detectFall(total) {
 
     let currentTime = Date.now();
+    let timeDiff = currentTime - lastTime;
+
     let change = Math.abs(total - lastTotal);
 
-    // Step 1: Detect impact
-    if (total > 14 && change > 6) {
-
-        // cooldown
-        if (currentTime - lastFallTime < 5000) return;
-
-        fallDetected = true;
-        lastFallTime = currentTime;
-
-        console.log("Impact detected");
-
-        // Step 2: Check stillness after 2 sec
-        setTimeout(() => {
-
-            if (!isAppActive) return;
-
-            let stillness = Math.abs(total - lastTotal);
-
-            if (stillness < 1) {
-                console.log("Still → possible fall");
-                handleFall("Fall + No Movement Detected");
-            } else {
-                console.log("Movement → false alarm");
-            }
-
-            fallDetected = false;
-
-        }, 2000);
+    if (
+        total > 13 &&
+        change > 5 &&
+        timeDiff < 400
+    ) {
+        if (currentTime - lastFallTime > 5000) {
+            lastFallTime = currentTime;
+            handleFall("Sudden Impact Detected");
+        }
     }
 
     lastTotal = total;
@@ -160,7 +141,7 @@ function handleFall(reason) {
             document.getElementById("status").innerText = "✅ User is safe";
         }
 
-    }, 1000);
+    }, 2000);
 }
 
 // ----------------------
@@ -170,6 +151,7 @@ function triggerEmergency() {
 
     document.getElementById("status").innerText = "🚑 Emergency Triggered! Getting location...";
 
+    // Step 1: Get user location
     if (navigator.geolocation) {
 
         navigator.geolocation.getCurrentPosition(
@@ -178,15 +160,19 @@ function triggerEmergency() {
                 let lat = position.coords.latitude;
                 let lon = position.coords.longitude;
 
-                document.getElementById("status").innerText =
-                    "📍 Location detected! Finding hospital...";
+                console.log("Location:", lat, lon);
 
+                document.getElementById("status").innerText =
+                    "📍 Location detected! Finding nearest hospital...";
+
+                // Step 2: Mock hospital data
                 let hospitals = [
                     { name: "City Hospital", available: true },
                     { name: "Apollo Hospital", available: false },
                     { name: "Government Hospital", available: true }
                 ];
 
+                // Step 3: Pick first available hospital
                 let selectedHospital = hospitals.find(h => h.available);
 
                 if (!selectedHospital) {
@@ -196,20 +182,27 @@ function triggerEmergency() {
                 }
 
                 document.getElementById("status").innerText =
-                    "🏥 " + selectedHospital.name + " available. Opening route...";
+                    "🏥 " + selectedHospital.name + " is available. Opening route...";
 
+                // Step 4: Open Google Maps with fastest route
                 let mapsURL = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${selectedHospital.name}&travelmode=driving`;
 
                 window.open(mapsURL, "_blank");
 
+                // Step 5: Simulate emergency call
                 console.log("📞 Calling ambulance...");
             },
 
-            () => {
+            (error) => {
+                console.error("Location error:", error);
                 document.getElementById("status").innerText =
-                    "❌ Location access failed!";
+                    "❌ Unable to get location!";
             }
         );
+
+    } else {
+        document.getElementById("status").innerText =
+            "❌ Geolocation not supported!";
     }
 }
 
