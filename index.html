@@ -107,7 +107,7 @@ function detectShake(total) {
     let change = Math.abs(total - lastTotal);
 
     // Step 1: detect strong movement
-    if (total > 12 && change > 4) {
+    if (total > 14 && change > 5) {
 
         if (shakeCount === 0) {
             shakeStartTime = currentTime;
@@ -118,7 +118,7 @@ function detectShake(total) {
     }
 
     // Step 2: confirm real shake (multiple spikes quickly)
-    if (shakeCount >= 3 && (currentTime - shakeStartTime < 600)) {
+    if (shakeCount >= 4 && (currentTime - shakeStartTime < 600)) {
 
         // cooldown
         if (currentTime - lastFallTime > 3000) {
