@@ -21,9 +21,13 @@ let started = false;
 let lastTotal = 0;
 let lastFallTime = 0;
 
-// Shake detection variables
+// Shake detection
 let shakeCount = 0;
 let shakeStartTime = 0;
+
+// Inactivity detection
+let lastMovementTime = Date.now();
+const INACTIVITY_LIMIT = 180000; // 3 minutes
 
 // ----------------------
 // AUTO START (ONE TIME)
@@ -95,18 +99,18 @@ function startSensors() {
             "Monitoring... Acc: " + total.toFixed(2);
 
         detectShake(total);
+        detectInactivity(total);
     });
 }
 
 // ----------------------
-// PROPER SHAKE DETECTION
+// SHAKE DETECTION
 // ----------------------
 function detectShake(total) {
 
     let currentTime = Date.now();
     let change = Math.abs(total - lastTotal);
 
-    // Step 1: detect strong movement
     if (total > 14 && change > 5) {
 
         if (shakeCount === 0) {
@@ -114,18 +118,13 @@ function detectShake(total) {
         }
 
         shakeCount++;
-        console.log("Shake count:", shakeCount);
     }
 
-    // Step 2: confirm real shake (multiple spikes quickly)
     if (shakeCount >= 4 && (currentTime - shakeStartTime < 600)) {
 
-        // cooldown
         if (currentTime - lastFallTime > 3000) {
 
             lastFallTime = currentTime;
-
-            console.log("Real shake detected ✅");
 
             handleFall("Shake Detected");
         }
@@ -133,12 +132,32 @@ function detectShake(total) {
         shakeCount = 0;
     }
 
-    // Step 3: reset if too slow
     if (currentTime - shakeStartTime > 800) {
         shakeCount = 0;
     }
 
     lastTotal = total;
+}
+
+// ----------------------
+// INACTIVITY DETECTION
+// ----------------------
+function detectInactivity(total) {
+
+    let currentTime = Date.now();
+
+    // movement detected
+    if (Math.abs(total - lastTotal) > 0.5) {
+        lastMovementTime = currentTime;
+    }
+
+    // no movement for 3 min
+    if (currentTime - lastMovementTime > INACTIVITY_LIMIT) {
+
+        lastMovementTime = currentTime; // reset
+
+        handleFall("No Movement Detected for 3 Minutes");
+    }
 }
 
 // ----------------------
